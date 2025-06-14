@@ -1,67 +1,67 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Login Facebook Multi Akun (Cookies)</title>
+  <title>FB Multi Akun Login via Cookies</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #f3f3f3; }
-    h2 { margin-bottom: 10px; }
-    textarea { width: 100%; height: 80px; margin-bottom: 10px; }
-    button, select { padding: 8px 12px; margin: 5px 0; width: 100%; }
-    .akun-list { margin-top: 20px; }
+    body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
+    textarea, select, button { width: 100%; padding: 10px; margin-top: 10px; font-size: 16px; }
+    img { width: 80px; border-radius: 50%; margin-top: 15px; }
   </style>
 </head>
 <body>
-  <h2>🧠 Login Facebook via Cookies</h2>
-  <textarea id="cookieInput" placeholder="Paste cookies di sini..."></textarea>
-  <button onclick="loginDenganCookies()">✅ Login dengan Cookies</button>
-  <button onclick="simpanAkun()">💾 Simpan Akun (setelah login)</button>
+  <h2>🔐 Login Facebook via Cookies</h2>
 
-  <div class="akun-list">
-    <h2>📋 Daftar Akun Tersimpan</h2>
-    <select id="akunSelect" onchange="pakaiAkun(this.value)">
-      <option value="">-- Pilih Akun --</option>
-    </select>
-  </div>
+  <textarea id="cookieInput" placeholder="Paste cookies format: c_user=...; xs=...;"></textarea>
+  <button onclick="loginDenganCookies()">✅ Login + Redirect ke Profil</button>
+  <button onclick="simpanAkun()">💾 Simpan Akun</button>
+
+  <h2>👤 Daftar Akun</h2>
+  <select id="akunList" onchange="pakaiAkun(this.value)">
+    <option value="">-- Pilih Akun --</option>
+  </select>
+
+  <div id="akunInfo"></div>
 
   <script>
     function loginDenganCookies() {
       const raw = document.getElementById("cookieInput").value;
       if (!raw) return alert("Masukkan cookies dulu!");
+
       raw.split(";").forEach(pair => {
         let [k, v] = pair.split("=");
         if (k && v) {
           document.cookie = `${k.trim()}=${v.trim()};domain=.facebook.com;path=/`;
         }
       });
+
       localStorage.setItem("temp_cookie_raw", raw);
-      alert("✅ Cookies disimpan. Reload untuk login...");
-      location.href = "https://m.facebook.com";
+      alert("✅ Cookies disimpan. Menuju profil...");
+      location.href = "https://facebook.com/me";
     }
 
     function simpanAkun() {
-      let name = prompt("Masukkan nama akun (atau biarkan kosong untuk coba ambil otomatis)");
-      if (!name) {
-        name = document.querySelector('[role="banner"] [dir="auto"] span')?.textContent ||
-               document.title || prompt("Nama tidak ditemukan, masukkan manual:");
-      }
-      if (!name) return alert("❌ Gagal ambil nama akun.");
+      fetch("https://m.facebook.com/me").then(res => res.text()).then(html => {
+        const nama = html.match(/<title>(.*?)<\/title>/)?.[1]?.replace(" | Facebook", "") || prompt("Masukkan nama akun:");
+        const img = html.match(/<img[^>]+src="([^"]+)"[^>]*alt="Foto profil"/)?.[1] || "";
 
-      let cookies = localStorage.getItem("temp_cookie_raw");
-      if (!cookies) return alert("❌ Tidak ada cookies tersimpan dari login sebelumnya.");
+        if (!nama) return alert("❌ Gagal ambil nama akun.");
+        const cookies = localStorage.getItem("temp_cookie_raw");
+        if (!cookies) return alert("❌ Cookies tidak ditemukan.");
 
-      let akunList = JSON.parse(localStorage.getItem("akun_list") || "[]");
-      akunList.push({ name, cookies });
-      localStorage.setItem("akun_list", JSON.stringify(akunList));
-      alert("✅ Akun '" + name + "' berhasil disimpan!");
-      loadDaftarAkun();
+        let akunList = JSON.parse(localStorage.getItem("akun_list") || "[]");
+        akunList.push({ name: nama, img, cookies });
+        localStorage.setItem("akun_list", JSON.stringify(akunList));
+        alert("✅ Akun '" + nama + "' berhasil disimpan.");
+        loadAkunList();
+      }).catch(err => alert("Gagal ambil profil: " + err));
     }
 
-    function loadDaftarAkun() {
-      const akunList = JSON.parse(localStorage.getItem("akun_list") || "[]");
-      const select = document.getElementById("akunSelect");
+    function loadAkunList() {
+      const list = JSON.parse(localStorage.getItem("akun_list") || "[]");
+      const select = document.getElementById("akunList");
       select.innerHTML = '<option value="">-- Pilih Akun --</option>';
-      akunList.forEach((a, i) => {
+      list.forEach((a, i) => {
         const opt = document.createElement("option");
         opt.value = i;
         opt.textContent = a.name;
@@ -70,21 +70,35 @@
     }
 
     function pakaiAkun(index) {
-      const akunList = JSON.parse(localStorage.getItem("akun_list") || "[]");
-      const akun = akunList[parseInt(index)];
+      const list = JSON.parse(localStorage.getItem("akun_list") || "[]");
+      const akun = list[parseInt(index)];
       if (!akun) return;
+
       akun.cookies.split(";").forEach(pair => {
         let [k, v] = pair.split("=");
         if (k && v) {
           document.cookie = `${k.trim()}=${v.trim()};domain=.facebook.com;path=/`;
         }
       });
+
       alert("✅ Login sebagai " + akun.name);
-      location.href = "https://m.facebook.com/me";
+      location.href = "https://facebook.com/me";
     }
 
-    // Load daftar akun saat halaman dibuka
-    loadDaftarAkun();
+    function tampilkanInfoAkun() {
+      const url = location.href;
+      if (!url.includes("/me") && !url.includes("/profile.php")) return;
+
+      fetch("https://m.facebook.com/me").then(res => res.text()).then(html => {
+        const nama = html.match(/<title>(.*?)<\/title>/)?.[1]?.replace(" | Facebook", "") || "Tidak ditemukan";
+        const img = html.match(/<img[^>]+src="([^"]+)"[^>]*alt="Foto profil"/)?.[1];
+        const div = document.getElementById("akunInfo");
+        div.innerHTML = `<p>👤 Nama: <b>${nama}</b></p>` + (img ? `<img src="${img}">` : '');
+      });
+    }
+
+    loadAkunList();
+    tampilkanInfoAkun();
   </script>
 </body>
 </html>
