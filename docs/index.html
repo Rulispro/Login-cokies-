@@ -12,8 +12,8 @@
 <body>
   <h2>🔐 Login Facebook via Cookies</h2>
 
-  <textarea id="cookieInput" placeholder="Paste cookies format: c_user=...; xs=...;"></textarea>
-  <button onclick="loginDenganCookies()">✅ Login + Redirect ke Profil</button>
+  <textarea id="cookieInput" placeholder="Paste cookies format: c_user=...; xs=...; etc."></textarea>
+  <button onclick="loginDenganCookies()">✅ Login + Ke Profil</button>
   <button onclick="simpanAkun()">💾 Simpan Akun</button>
 
   <h2>👤 Daftar Akun</h2>
@@ -41,20 +41,19 @@
     }
 
     function simpanAkun() {
-      fetch("https://m.facebook.com/me").then(res => res.text()).then(html => {
-        const nama = html.match(/<title>(.*?)<\/title>/)?.[1]?.replace(" | Facebook", "") || prompt("Masukkan nama akun:");
-        const img = html.match(/<img[^>]+src="([^"]+)"[^>]*alt="Foto profil"/)?.[1] || "";
+      const nama = document.title.replace(" | Facebook", "").trim();
+      if (!nama || nama === "Facebook") {
+        return alert("❌ Nama akun tidak dikenali. Harap login dulu ke profil.");
+      }
 
-        if (!nama) return alert("❌ Gagal ambil nama akun.");
-        const cookies = localStorage.getItem("temp_cookie_raw");
-        if (!cookies) return alert("❌ Cookies tidak ditemukan.");
+      const cookies = localStorage.getItem("temp_cookie_raw");
+      if (!cookies) return alert("❌ Cookies belum tersedia.");
 
-        let akunList = JSON.parse(localStorage.getItem("akun_list") || "[]");
-        akunList.push({ name: nama, img, cookies });
-        localStorage.setItem("akun_list", JSON.stringify(akunList));
-        alert("✅ Akun '" + nama + "' berhasil disimpan.");
-        loadAkunList();
-      }).catch(err => alert("Gagal ambil profil: " + err));
+      let akunList = JSON.parse(localStorage.getItem("akun_list") || "[]");
+      akunList.push({ name: nama, cookies });
+      localStorage.setItem("akun_list", JSON.stringify(akunList));
+      alert("✅ Akun '" + nama + "' disimpan.");
+      loadAkunList();
     }
 
     function loadAkunList() {
@@ -86,15 +85,14 @@
     }
 
     function tampilkanInfoAkun() {
-      const url = location.href;
-      if (!url.includes("/me") && !url.includes("/profile.php")) return;
+      const title = document.title;
+      if (!title.includes("Facebook")) return;
 
-      fetch("https://m.facebook.com/me").then(res => res.text()).then(html => {
-        const nama = html.match(/<title>(.*?)<\/title>/)?.[1]?.replace(" | Facebook", "") || "Tidak ditemukan";
-        const img = html.match(/<img[^>]+src="([^"]+)"[^>]*alt="Foto profil"/)?.[1];
-        const div = document.getElementById("akunInfo");
-        div.innerHTML = `<p>👤 Nama: <b>${nama}</b></p>` + (img ? `<img src="${img}">` : '');
-      });
+      const nama = title.replace(" | Facebook", "").trim();
+      const div = document.getElementById("akunInfo");
+      if (nama && nama !== "Facebook") {
+        div.innerHTML = `<p>👤 Nama akun: <b>${nama}</b></p>`;
+      }
     }
 
     loadAkunList();
